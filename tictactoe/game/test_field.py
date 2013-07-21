@@ -47,7 +47,7 @@ class TestField(unittest.TestCase):
         field = Field.from_text('o o'
                                 'x x'
                                 'x  ')
-        self.assertTrue(field.move(1, 0, 'x'))
+        self.assertFalse(field.move(1, 0, 'x'))
 
     def test_cell_occupied(self):
         field = Field.from_text('o o'

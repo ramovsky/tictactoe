@@ -15,8 +15,8 @@ define("domain", default="localhost", help="Cookie domain")
 define("game", help="Game server to work with", multiple=True)
 
 log = logging.getLogger('router')
-log.setLevel(logging.DEBUG)
-EXPIRE = 3600
+log.setLevel(logging.ERROR)
+EXPIRE = 36000
 GAME_SERVERS = []
 redis = tornadoredis.Client(options.redis_host, options.redis_port)
 
@@ -57,7 +57,7 @@ class LoginHandler(tornado.web.RequestHandler):
             yield tornado.gen.Task(pipe.execute)
             i = hash(login) % len(GAME_SERVERS)
             url = GAME_SERVERS[i]
-            self.set_cookie('sid', sid, domain=options.domain, expires=EXPIRE)
+            self.set_cookie('sid', sid, domain=options.domain, expires_days=1)
             self.redirect('/game#'+url, permanent=True)
 
 
@@ -82,7 +82,7 @@ class RegisterHandler(tornado.web.RequestHandler):
             pipe.set(sid, login)
             pipe.expire(sid, EXPIRE)
             yield tornado.gen.Task(pipe.execute)
-            self.set_cookie('sid', sid, domain=options.domain, expires=EXPIRE)
+            self.set_cookie('sid', sid, domain=options.domain, expires_days=1)
             i = hash(login) % len(GAME_SERVERS)
             url = GAME_SERVERS[i]
             self.redirect('/game#'+url, permanent=True)

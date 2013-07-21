@@ -1,7 +1,4 @@
-class GameError(Exception):
-
-    def __index__(self, reason):
-        self.reason = reason
+class GameError(Exception): pass
 
 
 class Field(object):
@@ -21,7 +18,7 @@ class Field(object):
         if side not in 'xo':
             raise GameError('wrong_side_symbol')
         if self.arr[y][x] != ' ':
-            raise GameError('cell_occupied', self.arr, y, x)
+            raise GameError('cell_occupied')
 
         val = 1 if side == 'x' else -1
         self.rows[y] += val
@@ -36,13 +33,13 @@ class Field(object):
 
 
     def check_win(self, x, y):
-        return self.rows[y] % 3 == 0 \
-            or self.cols[x] % 3 == 0 \
-            or self.left_diag % 3 == 0 \
-            or self.right_diag % 3 == 0
+        return self.rows[y] == 3 or self.rows[y] == -3 or \
+               self.cols[x] == 3 or self.cols[x] == -3 or \
+               self.left_diag == 3 or self.left_diag == -3 or \
+               self.right_diag == 3 or self.right_diag == -3
 
     @staticmethod
-    def from_text( text):
+    def from_text(text):
         text = text.replace('\n', '')
         field = Field()
 
@@ -59,6 +56,7 @@ class Player(object):
     def __init__(self, name, side):
         self.name = name
         self.side = side
+
 
 class Game(object):
 
@@ -102,4 +100,4 @@ class Game(object):
             self.state = Game.FINISH
             return user
 
-        self.turn = self.opponent if user == self.creator else self.creator
+        self.turn = self.players[1] if user == self.players[0].name else self.players[0]

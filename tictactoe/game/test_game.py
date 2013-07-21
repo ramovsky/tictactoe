@@ -49,5 +49,6 @@ class TestGame(unittest.TestCase):
         self.assertEqual('oleg', winner)
         self.assertRaises(GameError, game.move, 'max', 0, 1)
 
+
 if __name__ == '__main__':
     unittest.main()
