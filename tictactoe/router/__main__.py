@@ -8,16 +8,17 @@ import tornado.ioloop
 import tornado.gen
 from tornado.options import define, options, parse_command_line
 
-define("redis", default="127.0.0.1:6379", help="Reids DB")
+define("redis_host", default="127.0.0.1", help="Reids DB")
+define("redis_port", default=6379, help="Reids DB", type=int)
 define("port", default=8888, help="Port", type=int)
-define("domain", default="localhost:8888", help="Cookie domain")
+define("domain", default="localhost", help="Cookie domain")
 define("game", help="Game server to work with", multiple=True)
 
 log = logging.getLogger('router')
 log.setLevel(logging.DEBUG)
 EXPIRE = 3600
 GAME_SERVERS = []
-redis = tornadoredis.Client(options.redis)
+redis = tornadoredis.Client(options.redis_host, options.redis_port)
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -54,8 +55,10 @@ class LoginHandler(tornado.web.RequestHandler):
             pipe.set(sid, login)
             pipe.expire(sid, EXPIRE)
             yield tornado.gen.Task(pipe.execute)
+            i = hash(login) % len(GAME_SERVERS)
+            url = GAME_SERVERS[i]
             self.set_cookie('sid', sid, domain=options.domain, expires=EXPIRE)
-            self.redirect('/game#'+sid, permanent=True)
+            self.redirect('/game#'+url, permanent=True)
 
 
 class RegisterHandler(tornado.web.RequestHandler):
@@ -79,21 +82,22 @@ class RegisterHandler(tornado.web.RequestHandler):
             pipe.set(sid, login)
             pipe.expire(sid, EXPIRE)
             yield tornado.gen.Task(pipe.execute)
-            self.set_cookie('sid', sid, domain=DOMAIN, expires=EXPIRE)
-            self.redirect('/game?game='+sid, permanent=True)
+            self.set_cookie('sid', sid, domain=options.domain, expires=EXPIRE)
+            i = hash(login) % len(GAME_SERVERS)
+            url = GAME_SERVERS[i]
+            self.redirect('/game#'+url, permanent=True)
         else:
             self.render('template.html', error='Login used')
 
 
-
-#@tornado.web.asynchronous
 @tornado.gen.engine
 def ping():
     global GAME_SERVERS
     GAME_SERVERS = []
     http_client = tornado.httpclient.AsyncHTTPClient()
     for url in options.game:
-        resp = yield tornado.gen.Task(http_client.fetch, url, request_timeout=1)
+        hurl = 'http://{}/stats'.format(url)
+        resp = yield tornado.gen.Task(http_client.fetch, hurl, request_timeout=1)
         if not resp.error:
             GAME_SERVERS.append(url)
 

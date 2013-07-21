@@ -5,6 +5,15 @@
         <title>TicTacToe</title>
     </head>
     <body>
-	  GAME
+	  <script>
+var ws = new WebSocket('ws://' + window.location.hash.substring(1) + '/ws')
+ws.onmessage = function (evt) {
+   console.log(evt.data);
+};
+ws.onclose = function (evt) {
+   console.log('WS closed');
+};
+
+	  </script>
     </body>
 </html>
