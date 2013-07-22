@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>TicTacToe</title>
+    </head>
+    <body>
+	  Win:
+	  <ul>
+	  {% for name, c in win %}
+	  <li>{{ name }} - {{c}}</li>
+	  {% end %}
+	  </ul>
+	  Lose:
+	  <ul>
+	  {% for name, c in lose %}
+	  <li>{{ name }} - {{c}}</li>
+	  {% end %}
+	  </ul>
+	  Draw:
+	  <ul>
+	  {% for name, c in draw %}
+	  <li>{{ name }} - {{c}}</li>
+	  {% end %}
+	  </ul>
+	  Games:
+	  <ul>
+	  {% for name, c in games %}
+	  <li>{{ name }} - {{c}}</li>
+	  {% end %}
+	  </ul>
+    </body>
+</html>

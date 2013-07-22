@@ -10,8 +10,8 @@ class TestGame(unittest.TestCase):
 
         game.join('max')
         self.assertEqual(game.state, Game.READY)
-        self.assertEqual('oleg', game.players[0].name)
-        self.assertEqual('max', game.players[1].name)
+        self.assertIn('oleg', game.players)
+        self.assertIn('max', game.players)
 
     def test_wrong_side(self):
         self.assertRaises(GameError, Game, 'oleg', 'b')

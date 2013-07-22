@@ -28,9 +28,7 @@ class Field(object):
         if y == 2 - x:
             self.right_diag += val
         self.arr[y][x] = side
-
         return self.check_win(x, y)
-
 
     def check_win(self, x, y):
         return self.rows[y] == 3 or self.rows[y] == -3 or \
@@ -65,10 +63,11 @@ class Game(object):
     FINISH = 2
 
     def __init__(self, creator, side='x'):
-        self.players = [Player(creator, side)]
+        player = Player(creator, side)
+        self.players = {creator: player}
 
         if side == 'x':
-            self.turn = self.players[0]
+            self.turn = player
         elif side == 'o':
             self.turn = None
         else:
@@ -76,18 +75,20 @@ class Game(object):
 
         self.field = Field()
         self.state = self.NOTREADY
+        self.moves = 0
 
     def join(self, opponent):
-        if opponent == self.players[0].name:
+        if opponent in self.players:
             raise GameError('join_to_self')
         if self.state != self.NOTREADY:
             raise GameError('game_already_started')
 
         if self.turn is None:
-            self.players.append(Player(opponent, 'x'))
-            self.turn = self.players[1]
+            player = Player(opponent, 'x')
+            self.players[opponent] = player
+            self.turn = player
         else:
-            self.players.append(Player(opponent, 'o'))
+            self.players[opponent] = Player(opponent, 'o')
 
         self.state = self.READY
 
@@ -96,8 +97,12 @@ class Game(object):
             raise GameError('game_not_ready')
         if user != self.turn.name:
             raise GameError('wrong_turn')
-        if self.field.move(x, y, self.turn.side):
+        winner = self.field.move(x, y, self.turn.side)
+        if winner:
             self.state = Game.FINISH
             return user
+        self.moves += 1
+        if self.moves > 8:
+            return 'draw'
 
-        self.turn = self.players[1] if user == self.players[0].name else self.players[0]
+        self.turn = [p for p in self.players.values() if p.name != user][0]

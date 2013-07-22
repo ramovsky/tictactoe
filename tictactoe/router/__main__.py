@@ -26,6 +26,20 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("template.html", error='')
 
 
+class TopHandler(tornado.web.RequestHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
+        win = yield tornado.gen.Task(redis.zrevrange, 'win', 0, 10, 'WITHSCORES')
+        lose = yield tornado.gen.Task(redis.zrevrange, 'lose', 0, 10, 'WITHSCORES')
+        draw = yield tornado.gen.Task(redis.zrevrange, 'draw', 0, 10, 'WITHSCORES')
+        games = yield tornado.gen.Task(redis.zrevrange, 'games', 0, 10, 'WITHSCORES')
+
+        self.render("top.html", win=win, lose=lose, draw=draw, games=games)
+
+
 class GameHandler(tornado.web.RequestHandler):
 
     def get(self):
@@ -110,6 +124,7 @@ if __name__ == '__main__':
         (r'/login', LoginHandler),
         (r'/register', RegisterHandler),
         (r'/game', GameHandler),
+        (r'/top', TopHandler),
         ])
     application.listen(options.port)
     log.info('Router started on: {}'.format(options.port))

@@ -3,17 +3,84 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
         <title>TicTacToe</title>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     </head>
     <body>
 	  <script>
-var ws = new WebSocket('ws://' + window.location.hash.substring(1) + '/ws')
+ws = new WebSocket('ws://' + window.location.hash.substring(1) + '/ws');
 ws.onmessage = function (evt) {
-   console.log(evt.data);
+   console.log('RECIVED '+evt.data);
+   data = JSON.parse(evt.data);
+   if (data.error) {
+     $('#output').text(data.error);
+   }
+   else {
+     $('#output').text('');
+   }
+   if (data.reply == 'joined') {
+     $('#output').text('User "'+data.user+'" joined to game');
+     clear();
+   }
+   if (data.reply == 'move') {
+     $('#cell'+data.x+data.y).text('\u00A0' + data.side + '\u00A0');
+   }
+   if (data.reply == 'finish') {
+     $('#output').text('Game finished. Winner: '+data.winner);
+   }
+
 };
+ws.onopen = function (evt) {
+  send({'cmd': 'resume'});
+};
+
 ws.onclose = function (evt) {
    console.log('WS closed');
 };
 
+send = function(data) {
+  data = JSON.stringify(data);
+  ws.send(data);
+  console.log('SENDING '+data);
+};
+
+move = function(x, y) {
+  data = {'cmd': 'move', 'x': x, 'y': y}
+  send(data);
+};
+
+create = function(side) {
+  data = {'cmd': 'create', 'side': side}
+  send(data);
+};
+
+join = function() {
+  data = {'cmd': 'join'}
+  send(data);
+};
+
+clear = function() {
+  for (var x=0; x<3; x++) {
+    for (var y=0; y<3; y++) {
+      $('#cell'+x+y).text('\u00A0\u00A0\u00A0\u00A0');
+    }
+  }
+};
+
+
 	  </script>
+	  <h3><div id="output"></div></h3>
+	  Create new game, for: <a href="#" onclick="create('x');">x<a>, <a href="#" onclick="create('o');">o<a> or <a href="#" onclick="join();">join game</a>.
+
+	 <h1>
+	  <table border=1>
+	  {% for y in range(3) %}
+	  <tr>
+	  {% for x in range(3) %}
+      <td onclick="move({{x}}, {{y}});" id="cell{{x}}{{y}}">&nbsp&nbsp&nbsp&nbsp</td>
+	  {% end %}
+	  </tr>
+	  {% end %}
+	  </table>
+	  </h1>
     </body>
 </html>
