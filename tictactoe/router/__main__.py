@@ -8,9 +8,9 @@ import tornado.ioloop
 import tornado.gen
 from tornado.options import define, options, parse_command_line
 
-define("redis_host", default="127.0.0.1", help="Reids DB")
-define("redis_port", default=6379, help="Reids DB", type=int)
-define("port", default=8888, help="Port", type=int)
+define("redis_host", default="127.0.0.1", help="Reids host")
+define("redis_port", default=6379, help="Reids port", type=int)
+define("port", default=8888, help="Server port", type=int)
 define("domain", default="localhost", help="Cookie domain")
 define("game", help="Game server to work with", multiple=True)
 
@@ -18,7 +18,6 @@ log = logging.getLogger('router')
 log.setLevel(logging.ERROR)
 EXPIRE = 36000
 GAME_SERVERS = []
-redis = tornadoredis.Client(options.redis_host, options.redis_port)
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -40,6 +39,7 @@ class LoginHandler(tornado.web.RequestHandler):
     @tornado.gen.engine
     def get(self):
         log.debug('login {}'.format(self.request.arguments))
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
         if not GAME_SERVERS:
             self.render('template.html', error= "Servererr not ready!")
 
@@ -67,6 +67,7 @@ class RegisterHandler(tornado.web.RequestHandler):
     @tornado.gen.engine
     def get(self):
         log.debug('register {}'.format(self.request.arguments))
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
         if not GAME_SERVERS:
             self.render('template.html', error= "Servererr not ready!")
         login = self.request.arguments['login'][0]

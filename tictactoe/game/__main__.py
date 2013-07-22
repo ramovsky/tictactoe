@@ -11,16 +11,15 @@ from .referee import Referee
 from .game import Game, GameError
 from .cache import Cache
 
-define("redis_host", default="127.0.0.1", help="Reids DB")
-define("redis_port", default=6379, help="Reids DB", type=int)
-define("port", default=8881, help="Port", type=int)
+define("redis_host", default="127.0.0.1", help="Reids host")
+define("redis_port", default=6379, help="Reids port", type=int)
+define("port", default=8881, help="Server port", type=int)
 
 log = logging.getLogger('game')
 log.setLevel(logging.DEBUG)
 
 referee = Referee()
 cache = Cache()
-redis = tornadoredis.Client(options.redis_host, options.redis_port)
 sockets = {}
 
 
@@ -44,6 +43,7 @@ class GameWebSocket(websocket.WebSocketHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def on_message(self, message):
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
         sid = self.get_cookie('sid')
         username = cache.get(sid)
         if username is None:
