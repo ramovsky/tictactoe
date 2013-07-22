@@ -105,7 +105,7 @@ class GameWebSocket(websocket.WebSocketHandler):
         redis = tornadoredis.Client(options.redis_host, options.redis_port)
         game, winner = referee.move(username, **msg)
         for name in game.players:
-            s = socket.get(name)
+            s = sockets.get(name)
             if s:
                 s.write_message(
                     dict(reply='move',
