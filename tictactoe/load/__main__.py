@@ -25,9 +25,11 @@ class LoadScenario(object):
 
     def __init__(self, login):
         self.state = self.CREATED
+        self.login = login
         self.url = 'http://{1}/register?login={0}&password={0}&cpassword={0}'.format(login, options.url)
         self.connection = None
         self.data = None
+        self.start = None
 
     @tornado.gen.engine
     def step(self):
@@ -67,16 +69,21 @@ class LoadScenario(object):
                 self.send(cmd='auth', sid=self.sid)
             try:
                 msg = yield self.connection.read_message()
-                stats.append((time.time() - self.start)*1000)
             except AssertionError:
                 self.connection = None
                 return
             self.data = json.loads(msg)
+            if self.start and self.data.get('reply') == 'move' and self.data.get('name') == self.login:
+                stats.append((time.time() - self.start)*1000)
+                self.start = None
 
     def send(self, **dct):
-        assert self.connection is not None, 'something wrong'
+        if self.connection is None:
+            print('no connection')
+            return
         self.connection.write_message(json.dumps(dct))
-        self.start = time.time()
+        if dct['cmd'] == 'move':
+            self.start = time.time()
 
 
 def step():
@@ -89,6 +96,8 @@ def step():
 
 def prin_stats():
     global stats
+    if not stats:
+        return
     print('='*80)
     stats.sort()
     print('clients: {} latency min: {:.1f}ms, max: {:.1f}ms, med: {:.1f}ms'.format(
