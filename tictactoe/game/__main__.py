@@ -6,6 +6,7 @@ import tornado.web
 import tornado.gen
 from tornado import websocket
 from tornado.options import define, options, parse_command_line
+from functools import wraps
 
 from .referee import Referee
 from .game import Game, GameError
@@ -21,6 +22,16 @@ log.setLevel(logging.DEBUG)
 referee = Referee()
 cache = Cache()
 sockets = {}
+
+
+def autorized(fun):
+    @wraps(fun)
+    def wrapper(self, *args, **kw):
+        if self.username is None:
+            self.write_message(dict(error='session_expirered'))
+        else:
+            return fun(self, self.username, *args, **kw)
+    return wrapper
 
 
 class ProtocolError(Exception): pass
@@ -41,36 +52,15 @@ class GameWebSocket(websocket.WebSocketHandler):
     @tornado.gen.engine
     def open(self):
         log.debug("WebSocket opened {}".format(hash(self)))
-        redis = tornadoredis.Client(options.redis_host, options.redis_port)
-        sid = self.get_cookie('sid')
-        username = cache.get(sid)
-        if username is None:
-            username = yield tornado.gen.Task(redis.get, sid)
-            cache.set(sid, username)
-        if username is None:
-            self.write_message(dict(error='session_expirered'))
-            log.warning('session_error {}'.format(sid))
-            return
-        sockets[username] = self
+        self.username = None
 
     @tornado.web.asynchronous
     @tornado.gen.engine
     def on_message(self, message):
-        redis = tornadoredis.Client(options.redis_host, options.redis_port)
-        sid = self.get_cookie('sid')
-        username = cache.get(sid)
-        if username is None:
-            username = yield tornado.gen.Task(redis.get, sid)
-            cache.set(sid, username)
-        if username is None:
-            self.write_message(dict(error='session_expirered'))
-            log.warning('session_error {}'.format(sid))
-            return
-
         try:
             msg = json.loads(message)
             cmd = msg.pop('cmd')
-            getattr(self, '_'+cmd)(username, msg)
+            getattr(self, '_'+cmd)(msg)
         except (ValueError, KeyError):
             self.write_message(dict(error='protocol_error'))
             log.error('protocol_error {}'.format(message))
@@ -81,18 +71,21 @@ class GameWebSocket(websocket.WebSocketHandler):
             self.write_message(dict(error=e.message))
             log.warning('game_erroor {}, msg {}'.format(e.message, message))
 
-    def _create(self, username, msg):
-        referee.create_game(username, **msg)
-        self.write_message(dict(reply='created'))
+    @tornado.gen.engine
+    def _auth(self, msg):
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
+        sid = msg['sid']
+        username = cache.get(sid)
+        if username is None:
+            username = yield tornado.gen.Task(redis.get, sid)
+            cache.set(sid, username)
+        if username is None:
+            self.write_message(dict(error='session_expirered'))
+            log.warning('session_error {}'.format(sid))
+            return
 
-    def _join(self, username, msg):
-        game = referee.join_game(username, **msg)
-        for name in game.players:
-            s = sockets.get(name)
-            if s:
-                s.write_message(dict(reply='joined', user=username))
-
-    def _resume(self, username, msg):
+        sockets[username] = self
+        self.username = username
         field = referee.get_field(username)
         for y, row in enumerate(field):
             for x, c in enumerate(row):
@@ -100,7 +93,21 @@ class GameWebSocket(websocket.WebSocketHandler):
                     self.write_message(dict(reply='move', name=username, side=c,
                                             x=x, y=y))
 
+    @autorized
+    def _create(self, username, msg):
+        referee.create_game(username, **msg)
+        self.write_message(dict(reply='created'))
+
+    @autorized
+    def _join(self, username, msg):
+        game = referee.join_game(username, **msg)
+        for name in game.players:
+            s = sockets.get(name)
+            if s:
+                s.write_message(dict(reply='joined', user=username))
+
     @tornado.gen.engine
+    @autorized
     def _move(self, username, msg):
         redis = tornadoredis.Client(options.redis_host, options.redis_port)
         game, winner = referee.move(username, **msg)
@@ -131,28 +138,9 @@ class GameWebSocket(websocket.WebSocketHandler):
     @tornado.gen.engine
     def on_close(self):
         log.debug("WebSocket closed {}".format(hash(self)))
-        redis = tornadoredis.Client(options.redis_host, options.redis_port)
-        sid = self.get_cookie('sid')
-        username = cache.get(sid)
-        if username is None:
-            username = yield tornado.gen.Task(redis.get, sid)
-            cache.set(sid, username)
-        if username is None:
-            self.write_message(dict(error='session_expirered'))
-            log.warning('session_error {}'.format(sid))
-            return
-        sockets.pop(username, None)
-
-    def get_username(self):
-        redis = tornadoredis.Client(options.redis_host, options.redis_port)
-        sid = self.get_cookie('sid')
-        username = cache.get(sid)
-        if username is None:
-            username = yield tornado.gen.Task(redis.get, sid)
-            cache.set(sid, username)
-        if username is None:
-            self.write_message(dict(error='session_expirered'))
-            log.warning('session_error {}'.format(sid))
+        if self.username:
+            sockets.pop(self.username, None)
+            self.user = None
 
 
 if __name__ == '__main__':

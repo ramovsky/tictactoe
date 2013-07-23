@@ -7,7 +7,12 @@
     </head>
     <body>
 	  <script>
-ws = new WebSocket('ws://' + window.location.hash.substring(1) + '/ws');
+
+var split = window.location.hash.indexOf(';');
+var url = window.location.hash.substring(1, split);
+var sid = window.location.hash.substring(split+1);
+
+ws = new WebSocket('ws://' + url + '/ws');
 ws.onmessage = function (evt) {
    console.log('RECIVED '+evt.data);
    data = JSON.parse(evt.data);
@@ -30,7 +35,7 @@ ws.onmessage = function (evt) {
 
 };
 ws.onopen = function (evt) {
-  send({'cmd': 'resume'});
+  send({'cmd': 'auth', 'sid': sid});
 };
 
 ws.onclose = function (evt) {

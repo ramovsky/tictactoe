@@ -11,7 +11,6 @@ from tornado.options import define, options, parse_command_line
 define("redis_host", default="127.0.0.1", help="Reids host")
 define("redis_port", default=6379, help="Reids port", type=int)
 define("port", default=8888, help="Server port", type=int)
-define("domain", default="localhost", help="Cookie domain")
 define("game", help="Game server to work with", multiple=True)
 
 log = logging.getLogger('router')
@@ -71,8 +70,7 @@ class LoginHandler(tornado.web.RequestHandler):
             yield tornado.gen.Task(pipe.execute)
             i = hash(login) % len(GAME_SERVERS)
             url = GAME_SERVERS[i]
-            self.set_cookie('sid', sid, domain=options.domain, expires_days=1)
-            self.redirect('/game#'+url, permanent=True)
+            self.redirect('/game#{};{}'.format(url, sid), permanent=True)
 
 
 class RegisterHandler(tornado.web.RequestHandler):
@@ -97,10 +95,9 @@ class RegisterHandler(tornado.web.RequestHandler):
             pipe.set(sid, login)
             pipe.expire(sid, EXPIRE)
             yield tornado.gen.Task(pipe.execute)
-            self.set_cookie('sid', sid, domain=options.domain, expires_days=1)
             i = hash(login) % len(GAME_SERVERS)
             url = GAME_SERVERS[i]
-            self.redirect('/game#'+url, permanent=True)
+            self.redirect('/game#{};{}'.format(url, sid), permanent=True)
         else:
             self.render('template.html', error='Login used')
 
