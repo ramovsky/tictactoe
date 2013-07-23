@@ -57,6 +57,7 @@ class GameWebSocket(websocket.WebSocketHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def on_message(self, message):
+        log.debug("WebSocket message {}".format(message))
         try:
             msg = json.loads(message)
             cmd = msg.pop('cmd')
@@ -90,8 +91,9 @@ class GameWebSocket(websocket.WebSocketHandler):
         for y, row in enumerate(field):
             for x, c in enumerate(row):
                 if c != ' ':
-                    self.write_message(dict(reply='move', name=username, side=c,
-                                            x=x, y=y))
+                    self.write_message(dict(reply='move', name=username,
+                                            side=c, x=x, y=y))
+        self.write_message(dict(reply='authorized', user=username))
 
     @autorized
     def _create(self, username, msg):
