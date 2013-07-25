@@ -37,15 +37,23 @@ class LobbyHandler(WSBase):
                 self.write_message(dict(reply='joined', gid=gid,
                                         url=data['url']))
 
+    @tornado.gen.engine
     @authorized
     def _create(self, username, msg):
         if username in wait_games:
             raise GameError('already_wait')
+
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
+        in_game = yield tornado.gen.Task(redis.sadd, 'playing', username)
+        if in_game == 0:
+            self.write_message(dict(error='in_game'))
+            return
+
         wait_games[username] = msg['side']
         self.write_message(dict(reply='created'))
 
-    @authorized
     @tornado.gen.engine
+    @authorized
     def _join(self, username, msg):
         if not GAME_SERVERS:
             raise GameError("server_not_ready")
@@ -60,11 +68,15 @@ class LobbyHandler(WSBase):
         if cr_soc is None:
             raise GameError('creation_error')
 
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
+        in_game = yield tornado.gen.Task(redis.sadd, 'playing', username)
+        if in_game == 0:
+            raise GameError('in_game')
+
         i = hash(username) % len(GAME_SERVERS)
         url = GAME_SERVERS[i]
 
         gid = get_sid()
-        redis = tornadoredis.Client(options.redis_host, options.redis_port)
         key = 'game:' + gid
         pipe = redis.pipeline()
         pipe.hmset(key, {'creator': creator, 'opponent': username, 'side': side,

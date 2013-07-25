@@ -86,6 +86,10 @@ class GameWebSocket(WSBase):
                 else:
                     yield tornado.gen.Task(redis.zincrby, 'lose', name, 1)
                 yield tornado.gen.Task(redis.zincrby, 'games', name, 1)
+                yield tornado.gen.Task(redis.srem, 'playing', name)
+        if winner:
+            yield tornado.gen.Task(redis.delete, 'game'+self.gid)
+            self.gid = None
 
 
 if __name__ == '__main__':

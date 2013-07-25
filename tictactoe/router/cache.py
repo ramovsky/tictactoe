@@ -33,7 +33,7 @@ class RandomChoiceDict(dict):
         r = random.randrange(len(self))
         k = self.id2key[r]
         ret = self[k]
-        super(RandomChoiceDict, self).__delitem__(k)
+        self.__delitem__(k)
         return k, ret
 
 

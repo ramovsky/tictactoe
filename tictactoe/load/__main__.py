@@ -22,6 +22,7 @@ class LoadScenario(object):
     AUTH = 2
     GAME = 3
     FINISH = 4
+    GAMEAUTH = 5
 
     def __init__(self, login):
         self.state = self.CREATED
@@ -30,6 +31,7 @@ class LoadScenario(object):
         self.connection = None
         self.data = None
         self.start = None
+        self.gid = None
 
     @tornado.gen.engine
     def step(self):
@@ -37,11 +39,10 @@ class LoadScenario(object):
             http_client = tornado.httpclient.AsyncHTTPClient()
             resp = yield tornado.gen.Task(http_client.fetch, self.url,
                                           request_timeout=1)
-            u, h = resp.effective_url.split('#')
-            if h:
-                ws_url, self.sid = h.split(';')
-                self.ws_url = 'ws://{}/ws'.format(ws_url)
-                self.state = self.LOGINED
+            url, self.sid = resp.effective_url.split('#')
+            self.ws_url = 'ws://{}/ws'.format(url.split('/')[2])
+            self.origin_url = self.ws_url
+            self.state = self.LOGINED
 
         else:
             if self.data:
@@ -51,14 +52,24 @@ class LoadScenario(object):
 
                 if self.state == self.AUTH:
                     if self.data.get('reply') == 'joined':
-                        self.state = self.GAME
+                        self.state = self.GAMEAUTH
+                        self.gid = self.data['gid']
+                        self.ws_url = 'ws://{}/ws'.format(self.data['url'])
+                        self.connection = None
                         return
                     self.send(cmd='join')
                     self.send(cmd='create', side='x')
 
+                if self.state == self.GAMEAUTH:
+                    if self.data.get('reply') == 'authorized':
+                        self.state = self.GAME
+
                 if self.state == self.GAME:
                     if self.data.get('reply') == 'finish':
                         self.state = self.AUTH
+                        self.gid = None
+                        self.ws_url = self.origin_url
+                        self.connection = None
                         return
                     self.send(cmd='move', x=random.randint(0, 2),
                               y=random.randint(0, 2))
@@ -66,20 +77,22 @@ class LoadScenario(object):
 
             if self.connection is None:
                 self.connection = yield websocket_connect(self.ws_url)
-                self.send(cmd='auth', sid=self.sid)
+                self.send(cmd='auth', sid=self.sid, gid=self.gid)
             try:
                 msg = yield self.connection.read_message()
             except AssertionError:
                 self.connection = None
                 return
             self.data = json.loads(msg)
-            if self.start and self.data.get('reply') == 'move' and self.data.get('name') == self.login:
+            if self.start and \
+                   (self.data.get('reply') == 'move'  or \
+                    self.data.get('error') == 'wrong_turn') and \
+                   self.data.get('name') == self.login:
                 stats.append((time.time() - self.start)*1000)
                 self.start = None
 
     def send(self, **dct):
         if self.connection is None:
-            print('no connection')
             return
         self.connection.write_message(json.dumps(dct))
         if dct['cmd'] == 'move':
@@ -88,7 +101,7 @@ class LoadScenario(object):
 
 def step():
     if len(clients) < options.users:
-        login = 'test'+str(random.random()*options.users)
+        login = 'user'+str(random.random()*options.users)
         clients.append(LoadScenario(login))
     for c in clients:
         c.step()
