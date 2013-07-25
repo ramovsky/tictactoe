@@ -6,60 +6,105 @@
 		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     </head>
     <body>
+	  <h3><div id="output"></div></h3>
+	  <div id="lobby">
+		Create new game, for: <button onclick="create('x');">x</button>,
+		<button onclick="create('o');">o</button> or
+		<button onclick="join();">join game</button>.
+	  </div>
+	  <div id="game">
+		<h1>
+		  <table border=1>
+			{% for y in range(3) %}
+			<tr>
+			  {% for x in range(3) %}
+			  <td onclick="move({{x}}, {{y}});" id="cell{{x}}{{y}}">&nbsp&nbsp&nbsp&nbsp</td>
+			  {% end %}
+			</tr>
+			{% end %}
+		  </table>
+		</h1>
+	  </div>
+
 	  <script>
 
-var split = window.location.hash.indexOf(';');
-var url = window.location.hash.substring(1, split);
-var sid = window.location.hash.substring(split+1);
-
-ws = new WebSocket('ws://' + url + '/ws');
-ws.onmessage = function (evt) {
-   console.log('RECIVED '+evt.data);
-   data = JSON.parse(evt.data);
-   if (data.error) {
-     $('#output').text(data.error);
-   }
-   else {
-     $('#output').text('');
-   }
-   if (data.reply == 'joined') {
-     $('#output').text('User "'+data.user+'" joined to game');
-     clear();
-   }
-   if (data.reply == 'move') {
-     $('#cell'+data.x+data.y).text('\u00A0' + data.side + '\u00A0');
-   }
-   if (data.reply == 'finish') {
-     $('#output').text('Game finished. Winner: '+data.winner);
-   }
-
-};
-ws.onopen = function (evt) {
-  send({'cmd': 'auth', 'sid': sid});
+var url = window.location.origin.substring(7);
+var split = window.location.hash.indexOf(':');
+if ( split == -1 ) {
+  var sid = window.location.hash.substring(1);
+  var gid = null;
+} else {
+  var sid = window.location.hash.substring(1, split);
+  var gid = window.location.hash.substring(split+1);
 };
 
-ws.onclose = function (evt) {
-   console.log('WS closed');
+var ws = null;
+
+var create_ws = function (url) {
+  ws = new WebSocket('ws://' + url + '/ws');
+  ws.onmessage = function (evt) {
+     console.log('RECIVED '+evt.data);
+     data = JSON.parse(evt.data);
+     if (data.error) {
+       $('#output').text(data.error);
+     } else {
+       $('#output').text('');
+     }
+     if (data.reply == 'created') {
+       $('#output').text('Created');
+     }
+     if (data.reply == 'joined') {
+        gid = data.gid;
+        window.location.hash = sid + ':' + data.gid
+        change();
+        ws.close();
+        create_ws(data.url);
+        clear();
+     }
+     if (data.reply == 'authorized') {
+        change();
+     }
+     if (data.reply == 'move') {
+       $('#cell'+data.x+data.y).text('\u00A0' + data.side + '\u00A0');
+     }
+     if (data.reply == 'finish') {
+        alert('Game finished. Winner: '+data.winner);
+        gid = null;
+        window.location.hash = sid;
+        change();
+        ws.close()
+        create_ws(window.location.origin.substring(7))
+     }
+  };
+
+  ws.onopen = function (evt) {
+    send({'cmd': 'auth', 'sid': sid, 'gid': gid});
+  };
+
+  ws.onclose = function (evt) {
+     console.log('WS closed');
+  };
+
 };
 
-send = function(data) {
+send = function (data) {
   data = JSON.stringify(data);
   ws.send(data);
   console.log('SENDING '+data);
 };
 
-move = function(x, y) {
-  data = {'cmd': 'move', 'x': x, 'y': y}
-  send(data);
-};
-
-create = function(side) {
+create = function (side) {
   data = {'cmd': 'create', 'side': side}
   send(data);
 };
 
-join = function() {
+join = function () {
   data = {'cmd': 'join'}
+  send(data);
+};
+
+move = function(x, y) {
+  data = {'cmd': 'move', 'x': x, 'y': y}
   send(data);
 };
 
@@ -71,21 +116,20 @@ clear = function() {
   }
 };
 
+var change = function () {
+  if ( gid !== null ) {
+    $('#lobby').hide()
+    $('#game').show()
+  } else {
+    $('#lobby').show()
+    $('#game').hide()
+  }
+};
+
+$(document).ready(function () {
+  create_ws(url);
+})
 
 	  </script>
-	  <h3><div id="output"></div></h3>
-	  Create new game, for: <a href="#" onclick="create('x');">x<a>, <a href="#" onclick="create('o');">o<a> or <a href="#" onclick="join();">join game</a>.
-
-	 <h1>
-	  <table border=1>
-	  {% for y in range(3) %}
-	  <tr>
-	  {% for x in range(3) %}
-      <td onclick="move({{x}}, {{y}});" id="cell{{x}}{{y}}">&nbsp&nbsp&nbsp&nbsp</td>
-	  {% end %}
-	  </tr>
-	  {% end %}
-	  </table>
-	  </h1>
     </body>
 </html>

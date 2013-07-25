@@ -1,4 +1,4 @@
-class GameError(Exception): pass
+from tictactoe.utils import GameError
 
 
 class Field(object):

@@ -34,7 +34,7 @@ class RandomChoiceDict(dict):
         k = self.id2key[r]
         ret = self[k]
         super(RandomChoiceDict, self).__delitem__(k)
-        return ret
+        return k, ret
 
 
 class Cache(object):
