@@ -9,8 +9,10 @@
 	  <h3><div id="output"></div></h3>
 	  <div id="lobby">
 		Create new game, for: <button onclick="create('x');">x</button>,
-		<button onclick="create('o');">o</button> or
-		<button onclick="join();">join game</button>.
+		<button onclick="create('o');">o</button> <br/>
+		{% if games > 0 %}
+		or <button onclick="join();">join game</button>.
+		{% end %}
 	  </div>
 	  <div id="game">
 		<h1>
@@ -24,6 +26,7 @@
 			{% end %}
 		  </table>
 		</h1>
+		<button onclick="surrender();">Surrender</button>
 	  </div>
 
 	  <script>
@@ -105,6 +108,11 @@ join = function () {
 
 move = function(x, y) {
   data = {'cmd': 'move', 'x': x, 'y': y}
+  send(data);
+};
+
+surrender = function(x, y) {
+  data = {'cmd': 'surrender'}
   send(data);
 };
 

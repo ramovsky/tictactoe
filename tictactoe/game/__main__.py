@@ -91,6 +91,28 @@ class GameWebSocket(WSBase):
             yield tornado.gen.Task(redis.delete, 'game'+self.gid)
             self.gid = None
 
+    @tornado.gen.engine
+    @authorized
+    def _surrender(self, username, msg):
+        redis = tornadoredis.Client(options.redis_host, options.redis_port)
+        game = referee.get_game(self.gid)
+        winner = None
+        for name in game.players:
+            s = sockets.get(name)
+            if s and name != username:
+                winner = name
+                s.write_message(
+                    dict(reply='finish',
+                         winner=winner,
+                         ))
+                yield tornado.gen.Task(redis.zincrby, 'win', name, 1)
+            else:
+                yield tornado.gen.Task(redis.zincrby, 'lose', name, 1)
+            yield tornado.gen.Task(redis.zincrby, 'games', name, 1)
+            yield tornado.gen.Task(redis.srem, 'playing', name)
+        yield tornado.gen.Task(redis.delete, 'game'+self.gid)
+        self.gid = None
+
 
 if __name__ == '__main__':
     parse_command_line()

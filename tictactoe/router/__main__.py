@@ -92,12 +92,9 @@ class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, uri=None):
-        if not uri:
-            self.render("template.html", error='')
-
-        elif uri == 'game':
+        if uri == 'game':
             log.debug('game {}'.format(self.request.arguments))
-            self.render("game.html")
+            self.render("game.html", games=len(wait_games))
 
         elif uri == 'top':
             redis = tornadoredis.Client(options.redis_host, options.redis_port)
@@ -105,9 +102,15 @@ class MainHandler(tornado.web.RequestHandler):
             lose = yield tornado.gen.Task(redis.zrevrange, 'lose', 0, 10, 'WITHSCORES')
             draw = yield tornado.gen.Task(redis.zrevrange, 'draw', 0, 10, 'WITHSCORES')
             games = yield tornado.gen.Task(redis.zrevrange, 'games', 0, 10, 'WITHSCORES')
-            self.render("top.html", win=win, lose=lose, draw=draw, games=games)
+            self.render("top.html", win=win, lose=lose, draw=draw, games=games
+)
+        else:
+            self.render("template.html", error='')
 
-        elif uri == 'login':
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, uri=None):
+        if uri == 'login':
             log.debug('login {}'.format(self.request.arguments))
             redis = tornadoredis.Client(options.redis_host, options.redis_port)
             login = self.request.arguments['login'][0]

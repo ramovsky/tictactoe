@@ -12,10 +12,7 @@ class Referee(object):
         game.join(opponent)
 
     def move(self, gid, username, x, y):
-        game = self.games.get(gid)
-        if game is None or game.state != Game.READY:
-            raise GameError('game_not_ready')
-
+        game = self.get_game(gid)
         winner = game.move(username, x, y)
         if winner:
             self.games.pop(gid)
@@ -23,6 +20,12 @@ class Referee(object):
 
     def stats(self):
         return dict(play=len(self.games))
+
+    def get_game(self, gid):
+        game = self.games.get(gid)
+        if game is None or game.state != Game.READY:
+            raise GameError('game_not_ready')
+        return game
 
     def get_field(self, gid):
         if gid in self.games:
